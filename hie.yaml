@@ -1,0 +1,16 @@
+cradle:
+  multi:
+    # - path: "ignore/"
+    #   config: {cradle: {none: }}
+
+    - path: "src"
+      config: {cradle: {cabal: {component: "lib:fix-gen"}}}
+
+    - path: "app"
+      config: {cradle: {cabal: {component: "fix-gen:fix-gen-exe"}}}
+
+    - path: "test"
+      config: {cradle: {cabal: {component: "fix-gen:fix-gen-test"}}}
+
+    - path: "bench"
+      config: {cradle: {cabal: {component: "fix-gen:fix-gen-bench"}}}

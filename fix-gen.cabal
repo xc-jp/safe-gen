@@ -12,14 +12,6 @@ extra-doc-files:
   CHANGELOG.md
   README.md
 
--- category:
--- description:     description
--- synopsis:        one-line synopsis
--- homepage:        https://github.com/FIXME/fix-gen#readme
--- source-repository head
---   type:     git
---   location: git://github.com/FIXME/fix-gen.git
-
 common common-options
   build-depends:    base >=4.9 && <5
   default-language: Haskell2010
@@ -31,38 +23,14 @@ common common-options
 library
   import:          common-options
   hs-source-dirs:  src
-  exposed-modules: Lib
+  exposed-modules:
+    Test
+    Test.QuickCheck.SafeGen
+
   build-depends:
     , containers
+    , logict
     , mtl
-
-executable fix-gen-exe
-  import:         common-options
-  hs-source-dirs: app
-  main-is:        Main.hs
-  build-depends:  fix-gen
-  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
-
-test-suite fix-gen-test
-  import:         common-options
-  type:           exitcode-stdio-1.0
-  hs-source-dirs: test
-  main-is:        Spec.hs
-  build-depends:
-    , hspec
-    , HUnit
-    , fix-gen
     , QuickCheck
-
-  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
-
-benchmark fix-gen-bench
-  import:         common-options
-  type:           exitcode-stdio-1.0
-  hs-source-dirs: bench
-  main-is:        Main.hs
-  build-depends:
-    , criterion
-    , fix-gen
-
-  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+    , random
+    , transformers

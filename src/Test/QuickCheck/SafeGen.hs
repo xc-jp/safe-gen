@@ -39,10 +39,6 @@ choice (a : as) =
   let ne = a :| as
    in Choice ne
 
-loops = choice [choice [Gen undefined], loops]
-
-terminates = choice [terminates, Gen undefined]
-
 cost :: SafeGen a -> Nat
 cost (Gen _) = Zero
 cost (Choice as) = Succ $ safeMin (cost <$> as)

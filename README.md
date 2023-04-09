@@ -1,7 +1,7 @@
 # safer-gen
 
-[![fix-gen on hackage](https://img.shields.io/hackage/v/fix-gen)](http://hackage.haskell.org/package/fix-gen)
-[![fix-gen on Stackage Nightly](https://stackage.org/package/fix-gen/badge/nightly)](https://stackage.org/nightly/package/fix-gen)
+[![safer-gen on hackage](https://img.shields.io/hackage/v/safer-gen)](http://hackage.haskell.org/package/safer-gen)
+[![safer-gen on Stackage Nightly](https://stackage.org/package/safer-gen/badge/nightly)](https://stackage.org/nightly/package/safer-gen)
 
 A common annoyance when writing `Arbitrary` instances is accidentally writing diverging instances for recursive data.
 This package aims to make it easier to write instances that are guaranteed to terminate.

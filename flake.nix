@@ -1,5 +1,5 @@
 {
-  description = "fix-gen";
+  description = "safer-gen";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/release-22.11";
   inputs.flake-utils.url = "github:numtide/flake-utils";
@@ -10,10 +10,10 @@
         haskell = prev.haskell // {
           packageOverrides = hfinal: hprev:
             prev.haskell.packageOverrides hfinal hprev // {
-              fix-gen = hfinal.callCabal2nix "fix-gen" ./. { };
+              safer-gen = hfinal.callCabal2nix "safer-gen" ./. { };
             };
         };
-        fix-gen = final.haskell.lib.compose.justStaticExecutables final.haskellPackages.fix-gen;
+        safer-gen = final.haskell.lib.compose.justStaticExecutables final.haskellPackages.safer-gen;
       };
       perSystem = system:
         let
@@ -23,7 +23,7 @@
         {
           devShell = hspkgs.shellFor {
             withHoogle = true;
-            packages = p: [ p.fix-gen ];
+            packages = p: [ p.safer-gen ];
             buildInputs = [
               hspkgs.cabal-install
               hspkgs.haskell-language-server
@@ -32,7 +32,7 @@
               pkgs.bashInteractive
             ];
           };
-          defaultPackage = pkgs.fix-gen;
+          defaultPackage = pkgs.safer-gen;
         };
     in
     { inherit overlay; } // inputs.flake-utils.lib.eachDefaultSystem perSystem;

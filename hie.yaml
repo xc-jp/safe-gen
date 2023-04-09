@@ -4,13 +4,13 @@ cradle:
     #   config: {cradle: {none: }}
 
     - path: "src"
-      config: {cradle: {cabal: {component: "lib:fix-gen"}}}
+      config: {cradle: {cabal: {component: "lib:safer-gen"}}}
 
     - path: "app"
-      config: {cradle: {cabal: {component: "fix-gen:fix-gen-exe"}}}
+      config: {cradle: {cabal: {component: "safer-gen:safer-gen-exe"}}}
 
     - path: "test"
-      config: {cradle: {cabal: {component: "fix-gen:fix-gen-test"}}}
+      config: {cradle: {cabal: {component: "safer-gen:safer-gen-test"}}}
 
     - path: "bench"
-      config: {cradle: {cabal: {component: "fix-gen:fix-gen-bench"}}}
+      config: {cradle: {cabal: {component: "safer-gen:safer-gen-bench"}}}

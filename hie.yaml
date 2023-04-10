@@ -6,11 +6,11 @@ cradle:
     - path: "src"
       config: {cradle: {cabal: {component: "lib:safe-gen"}}}
 
-    - path: "app"
-      config: {cradle: {cabal: {component: "safe-gen:safe-gen-exe"}}}
+    # - path: "app"
+    #   config: {cradle: {cabal: {component: "safe-gen:safe-gen-exe"}}}
 
     - path: "test"
       config: {cradle: {cabal: {component: "safe-gen:safe-gen-test"}}}
 
-    - path: "bench"
-      config: {cradle: {cabal: {component: "safe-gen:safe-gen-bench"}}}
+    # - path: "bench"
+    #   config: {cradle: {cabal: {component: "safe-gen:safe-gen-bench"}}}

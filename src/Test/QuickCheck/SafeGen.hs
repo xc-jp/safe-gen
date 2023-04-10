@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -10,18 +9,16 @@
 
 {-# HLINT ignore "Avoid lambda using `infix`" #-}
 
-module Test.QuickCheck.SafeGen where
+module Test.QuickCheck.SafeGen
+  ( runSafeGen,
+    gen,
+    arb,
+    SafeGen,
+    oneof,
+    frequency,
+  )
+where
 
--- module Test.QuickCheck.SafeGen
---   ( runSafeGen,
---     gen,
---     SafeGen,
---     oneof,
---     frequency,
---   )
--- where
-
-import Control.Applicative
 import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty (..))
 import Test.QuickCheck (Gen)
@@ -71,6 +68,7 @@ runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
     go :: Int -> SafeGen a -> Gen a
     go !budget (Gen g) = QC.resize budget g
     go !budget p@Product {} = goProduct (div budget (arity p)) p
+    go !budget (Choice ((_, a) :| [])) = go budget a
     go !budget (Choice as) =
       case filter (flip leqInt budget . cost . snd) (toList as) of
         [] -> QC.frequency ((fmap . fmap) (go budget) (toList (safeMinCost (cost . snd) as)))
@@ -96,6 +94,9 @@ instance Applicative SafeGen where
 
 gen :: Gen a -> SafeGen a
 gen = Gen
+
+arb :: QC.Arbitrary a => SafeGen a
+arb = gen QC.arbitrary
 
 oneof :: [SafeGen a] -> SafeGen a
 oneof [] = error "SafeGen.oneof: empty list"
@@ -125,19 +126,3 @@ instance Applicative (Validation e) where
   VLeft e1 <*> VLeft e2 = VLeft (e1 <> e2)
   VLeft e1 <*> _ = VLeft e1
   _ <*> VLeft e2 = VLeft e2
-
-data Trie a = Leaf a | Branch (Trie a) (Trie a) (Trie a)
-  deriving (Show, Foldable)
-
-safeGenTrie :: SafeGen (Trie ())
-safeGenTrie =
-  oneof
-    [ pure (Leaf ()),
-      liftA3 Branch safeGenTrie safeGenTrie safeGenTrie
-    ]
-
-instance QC.Arbitrary a => QC.Arbitrary (Trie a) where
-  -- arbitrary = QC.oneof [Leaf <$> QC.arbitrary, liftM3 Branch QC.arbitrary QC.arbitrary QC.arbitrary]
-  arbitrary = runSafeGen go
-    where
-      go = oneof [Leaf <$> gen QC.arbitrary, liftA3 Branch go go go]

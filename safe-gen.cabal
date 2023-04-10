@@ -1,5 +1,5 @@
 cabal-version:   2.4
-name:            safer-gen
+name:            safe-gen
 version:         0
 license:         BSD-3-Clause
 build-type:      Simple
@@ -23,9 +23,7 @@ common common-options
 library
   import:          common-options
   hs-source-dirs:  src
-  exposed-modules:
-    Test.QuickCheck.SafeGen
-
+  exposed-modules: Test.QuickCheck.SafeGen
   build-depends:
     , containers
     , logict
@@ -34,7 +32,7 @@ library
     , random
     , transformers
 
-test-suite safer-gen-test
+test-suite safe-gen-test
   import:         common-options
   type:           exitcode-stdio-1.0
   hs-source-dirs: test
@@ -43,6 +41,6 @@ test-suite safer-gen-test
     , hspec
     , HUnit
     , QuickCheck
-    , safer-gen
+    , safe-gen
 
   ghc-options:    -threaded -rtsopts -with-rtsopts=-N

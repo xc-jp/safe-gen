@@ -6,6 +6,9 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Avoid lambda using `infix`" #-}
 
 module Test.QuickCheck.SafeGen where
 
@@ -19,10 +22,8 @@ module Test.QuickCheck.SafeGen where
 -- where
 
 import Control.Applicative
-import Control.Monad
 import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty (..))
-import GHC.Stack (HasCallStack)
 import Test.QuickCheck (Gen)
 import qualified Test.QuickCheck as QC
 
@@ -55,37 +56,33 @@ data SafeGen a
   = Gen (Gen a)
   | forall i.
     Product
-      { _leftArity :: !Double,
-        _leftBranch :: SafeGen (i -> a),
-        _rightArity :: !Double,
-        _rightBranch :: SafeGen i
-      }
+      (SafeGen (i -> a))
+      (SafeGen i)
   | Choice (NonEmpty (Int, SafeGen a))
 
 runSafeGen :: SafeGen a -> Gen a
 runSafeGen sg
-  | not (leqInt (cost sg) 20) = error "runSafeGen: Minimum tree height is more than 100, you most likely have guarantueed infinite recursion!"
+  | not (leqInt (cost sg) 20) = error "runSafeGen: Minimum depth more than 20, likely because all paths have infinite recursion!"
   | otherwise = runSafeGenNoHeightCheck sg
 
 runSafeGenNoHeightCheck :: SafeGen a -> Gen a
-runSafeGenNoHeightCheck sg = QC.sized (\size -> go (fromIntegral size) sg)
+runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
   where
-    go :: Double -> SafeGen a -> Gen a
-    go budget (Gen g) = QC.resize (floor budget) g
-    go budget (Product al l ar r) = let a = al + ar in go (budget * al / a) l <*> go (budget * ar / a) r
-    go budget (Choice as) = case filter (flip leqDouble budget . cost . snd) (toList as) of
-      [] -> QC.frequency ((fmap . fmap) (go budget) (toList (safeMinCost (cost . snd) as)))
-      as' -> QC.frequency ((fmap . fmap) (go budget) as')
+    go :: Int -> SafeGen a -> Gen a
+    go !budget (Gen g) = QC.resize budget g
+    go !budget p@Product {} = goProduct (div budget (arity p)) p
+    go !budget (Choice as) =
+      case filter (flip leqInt budget . cost . snd) (toList as) of
+        [] -> QC.frequency ((fmap . fmap) (go budget) (toList (safeMinCost (cost . snd) as)))
+        as' -> QC.frequency ((fmap . fmap) (go budget) as')
 
--- goProduct :: Int -> SafeGen a -> Gen a
--- goProduct budget = undefined
+    goProduct :: Int -> SafeGen a -> Gen a
+    goProduct !budget (Product l r) = goProduct budget l <*> goProduct budget r
+    goProduct !budget sg = go budget sg
 
--- arity :: SafeGen a -> Int
--- arity (Product l r) = arity l + arity r
-
-leqDouble :: Nat -> Double -> Bool
-leqDouble Zero !x = x > 0
-leqDouble (Succ n) !x = x > 1 && leqDouble n (x - 1)
+    arity :: SafeGen a -> Int
+    arity (Product l r) = arity l + arity r
+    arity _ = 1
 
 leqInt :: Nat -> Int -> Bool
 leqInt Zero !x = x > 0
@@ -95,11 +92,7 @@ deriving instance Functor SafeGen
 
 instance Applicative SafeGen where
   pure = Gen . pure
-  a <*> b = Product (arity a) a (arity b) b
-    where
-      arity :: SafeGen q -> Double
-      arity (Product l _ r _) = l + r
-      arity _ = 1
+  a <*> b = Product a b
 
 gen :: Gen a -> SafeGen a
 gen = Gen
@@ -117,7 +110,7 @@ frequency (a : as) = Choice (a :| as)
 cost :: SafeGen a -> Nat
 cost (Gen _) = Zero
 cost (Choice as) = Succ $ safeMin (cost . snd <$> as)
-cost (Product _ l _ r) = Succ $ cost l `addNat` cost r
+cost (Product l r) = Succ $ cost l `addNat` cost r
   where
     addNat :: Nat -> Nat -> Nat
     addNat Zero b = b

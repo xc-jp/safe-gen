@@ -1,7 +1,7 @@
-# safer-gen
+# safe-gen
 
-[![safer-gen on hackage](https://img.shields.io/hackage/v/safer-gen)](http://hackage.haskell.org/package/safer-gen)
-[![safer-gen on Stackage Nightly](https://stackage.org/package/safer-gen/badge/nightly)](https://stackage.org/nightly/package/safer-gen)
+[![safe-gen on hackage](https://img.shields.io/hackage/v/safe-gen)](http://hackage.haskell.org/package/safe-gen)
+[![safe-gen on Stackage Nightly](https://stackage.org/package/safe-gen/badge/nightly)](https://stackage.org/nightly/package/safe-gen)
 
 A common annoyance when writing `Arbitrary` instances is accidentally writing diverging instances for recursive data.
 This package aims to make it easier to write instances that are guaranteed to terminate.
@@ -24,7 +24,7 @@ instance Arbitrary a => Arbitrary (Trie a) where
     ]
 ```
 
-And here's how to write it safely using `safer-gen`.
+And here's how to write it safely using `safe-gen`.
 
 ```haskell
 instance Arbitrary a => Arbitrary (Trie a) where
@@ -38,7 +38,7 @@ instance Arbitrary a => Arbitrary (Trie a) where
 
 ## Design and goals
 
-`safer-gen`'s goal is to help write useful terminating instances, and to get as little in the way as possible.
+`safe-gen`'s goal is to help write useful terminating instances, and to get as little in the way as possible.
 It exists in a similar space as [generic-arbitrary](https://github.com/typeable/generic-arbitrary), but is aimed specifically at scenarios where deriving instances does not work.
 Examples include when you have invariants to maintain, are dealing with tricky fixpoints, or simply don't have a `Generic` instance.
 

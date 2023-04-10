@@ -6,7 +6,7 @@ import Test.QuickCheck.SafeGen as Safe
 main :: IO ()
 main =
   hspec $
-    describe "safer-gen-test" $
+    describe "safe-gen-test" $
       it "works" $
         2 + 2 `shouldBe` (4 :: Int)
 

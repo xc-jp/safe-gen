@@ -8,10 +8,6 @@ main :: IO ()
 main =
   hspec $
     describe "safe-gen-test" $ do
-      it "throws on infinite generator" $
-        let go :: SafeGen [()]
-            go = Safe.oneof [go]
-         in shouldThrow (generatorTerminates $ runSafeGen go) anyException
       it "Trie terminates" $
         generatorTerminates . runSafeGen $
           let go = Safe.oneof [pure (Leaf ()), liftA3 Branch go go go]
@@ -42,6 +38,19 @@ main =
                     loop
                   ]
            in go
+      it "Throws on infinite generator" $
+        let go = Safe.oneof [go] :: SafeGen [()]
+         in shouldThrow (generatorTerminates $ runSafeGen go) anyException
+      it "Generates terms" $
+        generatorTerminates . runSafeGen $
+          let go :: SafeGen a -> SafeGen (Term a)
+              go x =
+                Safe.oneof
+                  [ Var <$> x,
+                    Lam <$> go (Safe.frequency [(3, Just <$> x), (1, pure Nothing)]),
+                    liftA2 App (go x) (go x)
+                  ]
+           in go (pure ())
 
 generatorTerminates :: Gen a -> Expectation
 generatorTerminates g = flip shouldReturn () $ do
@@ -49,3 +58,8 @@ generatorTerminates g = flip shouldReturn () $ do
   forM_ as $ \a -> seq a (pure ())
 
 data Trie a = Leaf a | Branch (Trie a) (Trie a) (Trie a)
+
+data Term a
+  = Var a
+  | Lam (Term (Maybe a))
+  | App (Term a) (Term a)

@@ -58,3 +58,15 @@ Despite the name, and unlike `generic-arbitrary`, `safe-gen` does not make it co
 Nothing prevents you from writing something like `runSafeGen (let go = go in go)`, and it won't magically give you a lazy generator for infinite data (think `data Stream a = Stream a (Stream a)`).
 Instead, if there is a terminating code path, `safe-gen` finds it without you needing to worry about manually controlling recursion.
 Also, in some cases, such as `runSafeGen (let f = oneof [f] in f)`, `safe-gen` will be able to catch the infinite recursion upfront, and throw an exception.
+
+## Implementation
+
+A `SafeGen` value is a potentially infinite n-ary tree where branches are either product types or sum types, and leaves are `Gen` values.
+
+For every node, we define a _shallowness_ value, or minimum depth, which is the smallest number of branches to traverse to find a leaf.
+Since trees are potentially infinite, we take care to calculate this value lazily as a Peano numeral.
+For sum types, the shallowness is one plus the shallowness of its shallowest branch, for product types it is one plus the shallowness of its deepest branch, and for leaves it is zero.
+
+When we "run" this tree, i.e. go from `SafeGen` to `Gen`, we get `Gen`'s size parameter.
+For product branches, we divide the size between the number of branches and recurse.
+For sum branches, we choose only branches whose shallowness is at most the current size, or if none exist, the shallowest branch.

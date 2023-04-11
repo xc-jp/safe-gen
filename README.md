@@ -3,9 +3,9 @@
 [![safe-gen on hackage](https://img.shields.io/hackage/v/safe-gen)](http://hackage.haskell.org/package/safe-gen)
 [![safe-gen on Stackage Nightly](https://stackage.org/package/safe-gen/badge/nightly)](https://stackage.org/nightly/package/safe-gen)
 
-A common annoyance when writing `Arbitrary` instances is accidentally writing non-terminating generators for recursive data.
-`safe-gen` allows you to write almost the exact same code, but have them be guaranteed to terminate.
-It does this by automatically dividing `Gen`'s implicit size parameter between the different branches of a product type, and then only selecting sufficiently shallow branches of a sum type.
+Writing `Arbitrary` instances is for recursive data is annoying, since it's easy to accidentally write non-terminating instances.
+A common pattern is to use `Gen`'s implicit size parameter to guide recursion, but this is tedious and error-prone.
+`safe-gen` automates this by automatically dividing the size parameter between the different branches of a product type, and then only selecting sufficiently shallow branches of a sum type.
 
 ## Example
 

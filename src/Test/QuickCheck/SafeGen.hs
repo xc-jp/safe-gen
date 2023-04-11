@@ -39,8 +39,6 @@ data SafeGen a
       (SafeGen i)
   | Choice (NonEmpty (Int, SafeGen a))
 
--- data Product a = U (SafeGen a) | forall i. Ap ()
-
 runSafeGen :: SafeGen a -> Gen a
 runSafeGen sg
   | not (leqInt (shallowness sg) 20) = error "runSafeGen: Minimum depth more than 20, likely because all paths have infinite recursion!"

@@ -11,6 +11,7 @@
 
 module Test.QuickCheck.SafeGen
   ( runSafeGen,
+    runSafeGenNoHeightCheck,
     gen,
     arb,
     SafeGen,
@@ -103,7 +104,7 @@ shallowness = go
     go :: SafeGen a -> Nat
     go (Gen _) = Zero
     go (Choice as) = Succ $ safeMin (go . snd <$> as)
-    go (Ap l r) = Succ $ safeMax (goProduct l) (goProduct r)
+    go p@Ap {} = Succ $ goProduct p
 
     goProduct :: SafeGen a -> Nat
     goProduct (Ap l r) = safeMax (goProduct l) (goProduct r)

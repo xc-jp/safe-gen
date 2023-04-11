@@ -29,26 +29,6 @@ import qualified Test.QuickCheck as QC
 data Nat = Zero | Succ Nat
   deriving (Show)
 
--- TODO rename
-safeMin :: Traversable t => t Nat -> Nat
-safeMin xs = case traverse unsucc xs of
-  Nothing -> Zero
-  Just xs' -> Succ $ safeMin xs'
-  where
-    unsucc :: Nat -> Maybe Nat
-    unsucc Zero = Nothing
-    unsucc (Succ l) = Just l
-
--- TODO rename
-safeMinCost :: Traversable t => (a -> Nat) -> t a -> NonEmpty a
-safeMinCost fcost = go . fmap (\x -> (x, fcost x))
-  where
-    unpeel (x, Zero) = VLeft (pure x)
-    unpeel (x, Succ n) = VRight (x, n)
-    go xs = case traverse unpeel xs of
-      VLeft a -> a
-      VRight xs' -> go xs'
-
 data SafeGen a
   = Gen (Gen a)
   | forall i.
@@ -59,7 +39,7 @@ data SafeGen a
 
 runSafeGen :: SafeGen a -> Gen a
 runSafeGen sg
-  | not (leqInt (cost sg) 20) = error "runSafeGen: Minimum depth more than 20, likely because all paths have infinite recursion!"
+  | not (leqInt (shallowness sg) 20) = error "runSafeGen: Minimum depth more than 20, likely because all paths have infinite recursion!"
   | otherwise = runSafeGenNoHeightCheck sg
 
 runSafeGenNoHeightCheck :: SafeGen a -> Gen a
@@ -70,8 +50,8 @@ runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
     go !budget p@Product {} = goProduct (div budget (arity p)) p
     go !budget (Choice ((_, a) :| [])) = go budget a
     go !budget (Choice as) =
-      case filter (flip leqInt budget . cost . snd) (toList as) of
-        [] -> QC.frequency ((fmap . fmap) (go budget) (toList (safeMinCost (cost . snd) as)))
+      case filter (flip leqInt budget . shallowness . snd) (toList as) of
+        [] -> QC.frequency ((fmap . fmap) (go budget) (toList (safeMinBy (shallowness . snd) as)))
         as' -> QC.frequency ((fmap . fmap) (go budget) as')
 
     goProduct :: Int -> SafeGen a -> Gen a
@@ -81,6 +61,15 @@ runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
     arity :: SafeGen a -> Int
     arity (Product l r) = arity l + arity r
     arity _ = 1
+
+    safeMinBy :: Traversable t => (a -> Nat) -> t a -> NonEmpty a
+    safeMinBy fcost = goMin . fmap (\x -> (x, fcost x))
+      where
+        unpeel (x, Zero) = VLeft (pure x)
+        unpeel (x, Succ n) = VRight (x, n)
+        goMin xs = case traverse unpeel xs of
+          VLeft a -> a
+          VRight xs' -> goMin xs'
 
 leqInt :: Nat -> Int -> Bool
 leqInt Zero !x = x > 0
@@ -108,14 +97,32 @@ frequency :: [(Int, SafeGen a)] -> SafeGen a
 frequency [] = error "SafeGen.frequency: empty list"
 frequency (a : as) = Choice (a :| as)
 
-cost :: SafeGen a -> Nat
-cost (Gen _) = Zero
-cost (Choice as) = Succ $ safeMin (cost . snd <$> as)
-cost (Product l r) = Succ $ cost l `addNat` cost r
+shallowness :: SafeGen a -> Nat
+shallowness = go
   where
-    addNat :: Nat -> Nat -> Nat
-    addNat Zero b = b
-    addNat (Succ a) b = Succ (addNat a b)
+    go :: SafeGen a -> Nat
+    go (Gen _) = Zero
+    go (Choice as) = Succ $ safeMin (go . snd <$> as)
+    go (Product l r) = Succ $ safeMax (goProduct l) (goProduct r)
+
+    goProduct :: SafeGen a -> Nat
+    goProduct (Gen _) = Zero
+    goProduct (Choice as) = Succ $ safeMin (go . snd <$> as)
+    goProduct (Product l r) = safeMax (goProduct l) (goProduct r)
+
+    safeMax :: Nat -> Nat -> Nat
+    safeMax Zero b = b
+    safeMax a Zero = a
+    safeMax (Succ a) (Succ b) = Succ (safeMax a b)
+
+    safeMin :: Traversable t => t Nat -> Nat
+    safeMin xs = case traverse unsucc xs of
+      Nothing -> Zero
+      Just xs' -> Succ $ safeMin xs'
+      where
+        unsucc :: Nat -> Maybe Nat
+        unsucc Zero = Nothing
+        unsucc (Succ l) = Just l
 
 data Validation e a = VLeft (NonEmpty e) | VRight a
   deriving (Functor)

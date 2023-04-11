@@ -32,11 +32,14 @@ data Nat = Zero | Succ Nat
 
 data SafeGen a
   = Gen (Gen a)
+  | Pure a
   | forall i.
     Ap
       (SafeGen (i -> a))
       (SafeGen i)
   | Choice (NonEmpty (Int, SafeGen a))
+
+-- data Product a = U (SafeGen a) | forall i. Ap ()
 
 runSafeGen :: SafeGen a -> Gen a
 runSafeGen sg
@@ -47,8 +50,9 @@ runSafeGenNoHeightCheck :: SafeGen a -> Gen a
 runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
   where
     go :: Int -> SafeGen a -> Gen a
+    go _ (Pure a) = pure a
     go !budget (Gen g) = QC.resize budget g
-    go !budget p@Ap {} = goProduct (div budget (arity p)) p
+    go !budget p@Ap {} = goProduct (div budget (max 1 $ arity p)) p
     go !budget (Choice ((_, a) :| [])) = go budget a
     go !budget (Choice as) =
       case filter (flip leqInt budget . shallowness . snd) (toList as) of
@@ -61,7 +65,9 @@ runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
 
     arity :: SafeGen a -> Int
     arity (Ap l r) = arity l + arity r
-    arity _ = 1
+    arity (Pure _) = 0
+    arity (Gen _) = 1
+    arity (Choice _) = 1
 
     safeMinBy :: Traversable t => (a -> Nat) -> t a -> NonEmpty a
     safeMinBy fcost = goMin . fmap (\x -> (x, fcost x))
@@ -79,7 +85,9 @@ leqInt (Succ n) !x = x > 1 && leqInt n (x - 1)
 deriving instance Functor SafeGen
 
 instance Applicative SafeGen where
-  pure = Gen . pure
+  pure = Pure
+  Pure a <*> b = a <$> b
+  a <*> Pure b = ($ b) <$> a
   a <*> b = Ap a b
 
 gen :: Gen a -> SafeGen a
@@ -103,6 +111,7 @@ shallowness = go
   where
     go :: SafeGen a -> Nat
     go (Gen _) = Zero
+    go (Pure _) = Zero
     go (Choice as) = Succ $ safeMin (go . snd <$> as)
     go p@Ap {} = Succ $ goProduct p
 

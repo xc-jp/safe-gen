@@ -45,7 +45,7 @@ main =
          in shouldThrow (generatorTerminates $ runSafeGen go) anyException
       it "prefers shallower branches at low sizes" $
         generatorTerminates . resize 0 . runSafeGen $
-          Safe.oneof [pure (), liftA2 undefined undefined undefined]
+          Safe.oneof [pure (), liftA2 undefined (gen undefined) (gen undefined)]
       it "can generate tries of the maximum possible size" $ do
         let go = Safe.frequency [(1, pure (Leaf ())), (1000, liftA3 Branch go go go)]
         ls <- sample' $ resize 81 $ length <$> runSafeGen go

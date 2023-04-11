@@ -32,7 +32,7 @@ data Nat = Zero | Succ Nat
 data SafeGen a
   = Gen (Gen a)
   | forall i.
-    Product
+    Ap
       (SafeGen (i -> a))
       (SafeGen i)
   | Choice (NonEmpty (Int, SafeGen a))
@@ -47,7 +47,7 @@ runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
   where
     go :: Int -> SafeGen a -> Gen a
     go !budget (Gen g) = QC.resize budget g
-    go !budget p@Product {} = goProduct (div budget (arity p)) p
+    go !budget p@Ap {} = goProduct (div budget (arity p)) p
     go !budget (Choice ((_, a) :| [])) = go budget a
     go !budget (Choice as) =
       case filter (flip leqInt budget . shallowness . snd) (toList as) of
@@ -55,11 +55,11 @@ runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
         as' -> QC.frequency ((fmap . fmap) (go budget) as')
 
     goProduct :: Int -> SafeGen a -> Gen a
-    goProduct !budget (Product l r) = goProduct budget l <*> goProduct budget r
+    goProduct !budget (Ap l r) = goProduct budget l <*> goProduct budget r
     goProduct !budget sg = go budget sg
 
     arity :: SafeGen a -> Int
-    arity (Product l r) = arity l + arity r
+    arity (Ap l r) = arity l + arity r
     arity _ = 1
 
     safeMinBy :: Traversable t => (a -> Nat) -> t a -> NonEmpty a
@@ -79,7 +79,7 @@ deriving instance Functor SafeGen
 
 instance Applicative SafeGen where
   pure = Gen . pure
-  a <*> b = Product a b
+  a <*> b = Ap a b
 
 gen :: Gen a -> SafeGen a
 gen = Gen
@@ -103,12 +103,11 @@ shallowness = go
     go :: SafeGen a -> Nat
     go (Gen _) = Zero
     go (Choice as) = Succ $ safeMin (go . snd <$> as)
-    go (Product l r) = Succ $ safeMax (goProduct l) (goProduct r)
+    go (Ap l r) = Succ $ safeMax (goProduct l) (goProduct r)
 
     goProduct :: SafeGen a -> Nat
-    goProduct (Gen _) = Zero
-    goProduct (Choice as) = Succ $ safeMin (go . snd <$> as)
-    goProduct (Product l r) = safeMax (goProduct l) (goProduct r)
+    goProduct (Ap l r) = safeMax (goProduct l) (goProduct r)
+    goProduct sg = go sg
 
     safeMax :: Nat -> Nat -> Nat
     safeMax Zero b = b

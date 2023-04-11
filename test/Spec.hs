@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveFoldable #-}
+
 import Control.Applicative
 import Control.Monad (forM_)
 import Test.Hspec
@@ -8,11 +10,11 @@ main :: IO ()
 main =
   hspec $
     describe "safe-gen-test" $ do
-      it "Trie terminates" $
+      it "trie terminates" $
         generatorTerminates . runSafeGen $
           let go = Safe.oneof [pure (Leaf ()), liftA3 Branch go go go]
            in go
-      it "Unbalanced Trie terminates" $
+      it "unbalanced Trie terminates" $
         generatorTerminates . runSafeGen $
           let go =
                 Safe.frequency
@@ -29,7 +31,7 @@ main =
                     liftA3 Branch go go go
                   ]
            in go
-      it "Ignores a looping branch" $
+      it "ignores a looping branch" $
         generatorTerminates . runSafeGen $
           let loop = Safe.oneof [loop]
               go =
@@ -38,10 +40,17 @@ main =
                     loop
                   ]
            in go
-      it "Throws on infinite generator" $
+      it "throws on infinite generator" $
         let go = Safe.oneof [go] :: SafeGen [()]
          in shouldThrow (generatorTerminates $ runSafeGen go) anyException
-      it "Generates terms" $
+      it "prefers shallower branches at low sizes" $
+        generatorTerminates . resize 0 . runSafeGen $
+          Safe.oneof [pure (), liftA2 undefined undefined undefined]
+      it "can generate tries of the maximum possible size" $ do
+        let go = Safe.frequency [(1, pure (Leaf ())), (1000, liftA3 Branch go go go)]
+        ls <- sample' $ resize 81 $ length <$> runSafeGen go
+        maximum ls `shouldBe` 81
+      it "generates terms" $
         generatorTerminates . runSafeGen $
           let go :: SafeGen a -> SafeGen (Term a)
               go x =
@@ -58,6 +67,7 @@ generatorTerminates g = flip shouldReturn () $ do
   forM_ as $ \a -> seq a (pure ())
 
 data Trie a = Leaf a | Branch (Trie a) (Trie a) (Trie a)
+  deriving (Foldable)
 
 data Term a
   = Var a

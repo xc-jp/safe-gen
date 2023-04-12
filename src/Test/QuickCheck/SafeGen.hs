@@ -5,13 +5,10 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Avoid lambda using `infix`" #-}
 
 module Test.QuickCheck.SafeGen
   ( runSafeGen,
-    runSafeGenNoHeightCheck,
+    runSafeGenNoCheck,
     gen,
     arb,
     SafeGen,
@@ -25,11 +22,11 @@ import Data.List.NonEmpty (NonEmpty (..))
 import Test.QuickCheck (Gen)
 import qualified Test.QuickCheck as QC
 
--- TODO memoize cost
-
 data Nat = Zero | Succ Nat
   deriving (Show)
 
+-- 'Pure' could be encoded as @Gen . pure@, but by special-casing it we can maintain the Applicative laws.
+-- Specifically, when dividing the size parameter, we don't count 'Pure' branches.
 data SafeGen a
   = Gen (Gen a)
   | Pure a
@@ -39,27 +36,38 @@ data SafeGen a
       (SafeGen i)
   | Choice (NonEmpty (Int, SafeGen a))
 
+deriving instance Functor SafeGen
+
+instance Applicative SafeGen where
+  pure = Pure
+  Pure a <*> b = a <$> b
+  a <*> Pure b = ($ b) <$> a
+  a <*> b = Ap a b
+
+-- | Run a 'SafeGen' using the current context's size parameter.
+-- If the 'SafeGen' value does not have a leaf within 20 layers, assume it has infinite recursion, and throw an exception.
 runSafeGen :: SafeGen a -> Gen a
 runSafeGen sg
   | not (leqInt (shallowness sg) 20) = error "runSafeGen: Minimum depth more than 20, likely because all paths have infinite recursion!"
-  | otherwise = runSafeGenNoHeightCheck sg
+  | otherwise = runSafeGenNoCheck sg
 
-runSafeGenNoHeightCheck :: SafeGen a -> Gen a
-runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
+-- | like 'runSafeGen', but doesn't first check if this generator can terminate.
+runSafeGenNoCheck :: SafeGen a -> Gen a
+runSafeGenNoCheck sg0 = QC.sized (\size -> go size sg0)
   where
     go :: Int -> SafeGen a -> Gen a
     go _ (Pure a) = pure a
-    go !budget (Gen g) = QC.resize budget g
-    go !budget p@Ap {} = goProduct (div budget (max 1 $ arity p)) p
-    go !budget (Choice ((_, a) :| [])) = go budget a
-    go !budget (Choice as) =
-      case filter (flip leqInt budget . shallowness . snd) (toList as) of
-        [] -> QC.frequency ((fmap . fmap) (go budget) (toList (safeMinBy (shallowness . snd) as)))
-        as' -> QC.frequency ((fmap . fmap) (go budget) as')
+    go !size (Gen g) = QC.resize size g
+    go !size p@Ap {} = goProduct (size `div` max 1 (arity p)) p
+    go !size (Choice ((_, a) :| [])) = go size a
+    go !size (Choice as) =
+      case filter (flip leqInt size . shallowness . snd) (toList as) of
+        [] -> QC.frequency ((fmap . fmap) (go size) (toList (safeMinBy (shallowness . snd) as)))
+        as' -> QC.frequency ((fmap . fmap) (go size) as')
 
     goProduct :: Int -> SafeGen a -> Gen a
-    goProduct !budget (Ap l r) = goProduct budget l <*> goProduct budget r
-    goProduct !budget sg = go budget sg
+    goProduct !size (Ap l r) = goProduct size l <*> goProduct size r
+    goProduct !size sg = go size sg
 
     arity :: SafeGen a -> Int
     arity (Ap l r) = arity l + arity r
@@ -68,7 +76,7 @@ runSafeGenNoHeightCheck sg0 = QC.sized (\size -> go size sg0)
     arity (Choice _) = 1
 
     safeMinBy :: Traversable t => (a -> Nat) -> t a -> NonEmpty a
-    safeMinBy fcost = goMin . fmap (\x -> (x, fcost x))
+    safeMinBy fdepth = goMin . fmap (\x -> (x, fdepth x))
       where
         unpeel (x, Zero) = VLeft (pure x)
         unpeel (x, Succ n) = VRight (x, n)
@@ -80,30 +88,29 @@ leqInt :: Nat -> Int -> Bool
 leqInt Zero !x = x > 0
 leqInt (Succ n) !x = x > 1 && leqInt n (x - 1)
 
-deriving instance Functor SafeGen
-
-instance Applicative SafeGen where
-  pure = Pure
-  Pure a <*> b = a <$> b
-  a <*> Pure b = ($ b) <$> a
-  a <*> b = Ap a b
-
+-- | Lift a 'Gen' generator into 'SafeGen'.
 gen :: Gen a -> SafeGen a
 gen = Gen
 
+-- | Convenient synonym for 'gen arbitrary'.
 arb :: QC.Arbitrary a => SafeGen a
 arb = gen QC.arbitrary
 
+-- | Pick one of these branches, with equal probability.
+-- Only branches shallower than the current size are considered.
 oneof :: [SafeGen a] -> SafeGen a
 oneof [] = error "SafeGen.oneof: empty list"
 oneof (a : as) =
   let ne = a :| as
    in Choice ((1,) <$> ne)
 
+-- | Pick one of these branches, with weighted probability.
+-- Only branches shallower than the current size are considered.
 frequency :: [(Int, SafeGen a)] -> SafeGen a
 frequency [] = error "SafeGen.frequency: empty list"
 frequency (a : as) = Choice (a :| as)
 
+-- TODO memoize this into 'SafeGen' directly
 shallowness :: SafeGen a -> Nat
 shallowness = go
   where
@@ -131,6 +138,7 @@ shallowness = go
         unsucc Zero = Nothing
         unsucc (Succ l) = Just l
 
+-- | 'Either' that collects _all_ its failures in a list
 data Validation e a = VLeft (NonEmpty e) | VRight a
   deriving (Functor)
 

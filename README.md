@@ -9,18 +9,17 @@ A common pattern is to use `Gen`'s implicit size parameter to guide recursion, b
 
 ## Example
 
-Here's an example of an `Arbitrary` that diverges:
+Here's an example of an `Arbitrary` instance that does not terminate:
 
 ```haskell
 data Trie a
   = Leaf a
-  | Branch a (Trie a) (Trie a) (Trie a)
-  deriving (Show, Foldable)
+  | Branch (Trie a) (Trie a) (Trie a)
 
 instance Arbitrary a => Arbitrary (Trie a) where
   arbitrary = oneof
     [ Leaf <$> arbitrary
-    , Branch <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+    , Branch <$> arbitrary <*> arbitrary <*> arbitrary
     ]
 ```
 
@@ -28,10 +27,10 @@ And here's how to write it safely using `safe-gen`.
 
 ```haskell
 instance Arbitrary a => Arbitrary (Trie a) where
-  arbitrary = runSafeGen go
+  arbitrary = Safe.runSafeGen go
     where go = Safe.oneof
                  [ Leaf <$> Safe.gen arbitrary,
-                   Branch <$> Safe.gen arbitrary <*> go <*> go <*> go
+                   Branch <$> go <*> go <*> go
                  ]
 ```
 
@@ -51,6 +50,7 @@ As mentioned in the intro, a common pattern is to use `Gen`'s implicit size para
 Both make writing `Arbitrary` instances less error-prone, in the case of `generic-arbitrary` by not having to write them at all.
 If automatically deriving `Generic` instances works for your use case, there is probably no reason to use `safe-gen`.
 However, there are cases where `generic-arbitrary` fails to derive useful terminating instances, and in those cases `safe-gen` might help.
+Examples include when you have tricky fixpoints, or invariants to maintain.
 
 There is also [less-arbitrary](https://github.com/mgajda/less-arbitrary) which is quite a bit more complex than either `safe-gen` or `generic-arbitrary`, and has a larger API and dependency footprint.
 It throws exceptions and retries if it can't find a terminating instance, whereas `safe-gen` tries to take paths that it knows terminate.

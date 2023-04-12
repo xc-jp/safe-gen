@@ -146,14 +146,14 @@ instance QC.Arbitrary a => QC.Arbitrary (SafeGen a) where
       genOne = (,) <$> weight <*> go
       numChoices = [0..5] :: [Int]
       genChoice n = (\a as -> Choice (a :| as)) <$> genOne <*> traverse (const genOne) [1..n]
-      go = oneof [ Pure <$> gen QC.arbitrary
-                 , Gen QC.arbitrary
+      -- each constructor gets an equal weight of 6 to distribute between its subcases
+      go = frequency $
+                 [ (6, Pure <$> gen QC.arbitrary)
+                 , (6, Gen QC.arbitrary)
                  -- TODO: is there something more suitable for Ap here?
-                 , oneof [ Ap (pure id) go
-                         , Ap ((\a b -> oneof [a, b]) <$> go) go
-                         ]
-                 , oneof [ genChoice n | n <- numChoices ]
-                 ]
+                 , (3, Ap (pure id) go)
+                 , (3, Ap ((\a b -> oneof [a, b]) <$> go) go)
+                 ] <> [ (1, genChoice n) | n <- numChoices ]
 
 -- | 'Either' that collects _all_ its failures in a list
 data Validation e a = VLeft (NonEmpty e) | VRight a

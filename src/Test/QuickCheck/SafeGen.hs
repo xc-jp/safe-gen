@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -17,6 +18,7 @@ module Test.QuickCheck.SafeGen
   )
 where
 
+import Control.Applicative (liftA2)
 import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty (..))
 import Test.QuickCheck (Gen)
@@ -100,9 +102,7 @@ arb = gen QC.arbitrary
 -- Only branches shallower than the current size are considered.
 oneof :: [SafeGen a] -> SafeGen a
 oneof [] = error "SafeGen.oneof: empty list"
-oneof (a : as) =
-  let ne = a :| as
-   in Choice ((1,) <$> ne)
+oneof (a : as) = Choice $ (1,) <$> a :| as
 
 -- | Pick one of these branches, with weighted probability.
 -- Only branches shallower than the current size are considered.
@@ -141,19 +141,17 @@ shallowness = go
 instance QC.Arbitrary a => QC.Arbitrary (SafeGen a) where
   arbitrary = runSafeGen go
     where
-      weights = [1..9] :: [Int]
-      weight = gen (QC.elements weights)
+      weight = gen (QC.chooseInt (1, 9))
       genOne = (,) <$> weight <*> go
-      numChoices = [0..5] :: [Int]
-      genChoice n = (\a as -> Choice (a :| as)) <$> genOne <*> traverse (const genOne) [1..n]
-      -- each constructor gets an equal weight of 6 to distribute between its subcases
-      go = frequency $
-                 [ (6, Pure <$> gen QC.arbitrary)
-                 , (6, Gen QC.arbitrary)
-                 -- TODO: is there something more suitable for Ap here?
-                 , (3, Ap (pure id) go)
-                 , (3, Ap ((\a b -> oneof [a, b]) <$> go) go)
-                 ] <> [ (1, genChoice n) | n <- numChoices ]
+      numChoices = [0 .. 5] :: [Int]
+      genChoice n = (\a as -> Choice (a :| as)) <$> genOne <*> traverse (const genOne) [1 .. n]
+      go =
+        oneof
+          [ pure (Gen QC.arbitrary),
+            gen (Pure <$> QC.arbitrary),
+            liftA2 Ap (arb :: SafeGen (SafeGen (Int -> a))) arb,
+            oneof (genChoice <$> numChoices)
+          ]
 
 -- | 'Either' that collects _all_ its failures in a list
 data Validation e a = VLeft (NonEmpty e) | VRight a

@@ -23,7 +23,10 @@ common common-options
 library
   import:          common-options
   hs-source-dirs:  src
-  exposed-modules: Test.QuickCheck.SafeGen
+  exposed-modules:
+    Test.QuickCheck.SafeGen
+    Test.QuickCheck.SafeGen.Generic
+
   other-modules:   Test.QuickCheck.SafeGen.Internal
   build-depends:
     , containers

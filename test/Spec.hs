@@ -1,12 +1,17 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 import Control.Applicative
 import Control.Monad (forM_)
+import GHC.Generics (Generic)
 import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck as QC
 import Test.QuickCheck.SafeGen as Safe
+import Test.QuickCheck.SafeGen.Generic
 
 main :: IO ()
 main =
@@ -64,6 +69,9 @@ main =
                     liftA2 App (go x) (go x)
                   ]
            in go (pure ())
+      describe "generics" $ do
+        prop "derived Trie generator terminates" $ generatorTerminates (arbitrary :: Gen (Trie Int))
+        prop "derived Term generator terminates" $ generatorTerminates (arbitrary :: Gen (Term Int))
 
 generatorTerminates :: Gen a -> Expectation
 generatorTerminates g = flip shouldReturn () $ do
@@ -71,9 +79,14 @@ generatorTerminates g = flip shouldReturn () $ do
   forM_ as $ \a -> seq a (pure ())
 
 data Trie a = Leaf a | Branch (Trie a) (Trie a) (Trie a)
-  deriving (Foldable)
+  deriving stock (Foldable, Generic)
+  deriving anyclass (SafeArbitrary)
+  deriving (Arbitrary) via (FromSafeArbitrary (Trie a))
 
 data Term a
   = Var a
   | Lam (Term (Maybe a))
   | App (Term a) (Term a)
+  deriving stock (Foldable, Generic)
+  deriving anyclass (SafeArbitrary)
+  deriving (Arbitrary) via (FromSafeArbitrary (Term a))

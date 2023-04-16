@@ -1,8 +1,10 @@
 {-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 import Control.Applicative
 import Control.Monad (forM_)
 import Test.Hspec
+import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck as QC
 import Test.QuickCheck.SafeGen as Safe
 
@@ -50,6 +52,8 @@ main =
         let go = Safe.frequency [(1, pure (Leaf ())), (1000, liftA3 Branch go go go)]
         ls <- sample' $ resize 81 $ length <$> runSafeGen go
         maximum ls `shouldBe` 81
+      prop "arbitrary generators terminate" $ \(Blind (sg :: SafeGen Int)) ->
+        generatorTerminates $ runSafeGenNoCheck sg
       it "generates terms" $
         generatorTerminates . runSafeGen $
           let go :: SafeGen a -> SafeGen (Term a)

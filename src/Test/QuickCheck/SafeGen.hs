@@ -3,6 +3,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -17,9 +18,10 @@ module Test.QuickCheck.SafeGen
   )
 where
 
+import Control.Applicative (liftA2)
 import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty (..))
-import Test.QuickCheck (Gen)
+import Test.QuickCheck hiding (frequency, oneof)
 import qualified Test.QuickCheck as QC
 
 data Nat = Zero | Succ Nat
@@ -100,9 +102,7 @@ arb = gen QC.arbitrary
 -- Only branches shallower than the current size are considered.
 oneof :: [SafeGen a] -> SafeGen a
 oneof [] = error "SafeGen.oneof: empty list"
-oneof (a : as) =
-  let ne = a :| as
-   in Choice ((1,) <$> ne)
+oneof (a : as) = Choice $ (1,) <$> a :| as
 
 -- | Pick one of these branches, with weighted probability.
 -- Only branches shallower than the current size are considered.
@@ -137,6 +137,18 @@ shallowness = go
         unsucc :: Nat -> Maybe Nat
         unsucc Zero = Nothing
         unsucc (Succ l) = Just l
+
+instance QC.Arbitrary a => QC.Arbitrary (SafeGen a) where
+  arbitrary =
+    QC.frequency
+      [ (1, pure (Gen QC.arbitrary)),
+        (1, Pure <$> QC.arbitrary),
+        (2, liftA2 Ap (QC.arbitrary :: Gen (SafeGen (Int -> a))) QC.arbitrary),
+        (2, Choice . fmap (\(Positive (Small w), g) -> (w, g)) <$> nonEmpty)
+      ]
+    where
+      nonEmpty :: Arbitrary b => Gen (NonEmpty b)
+      nonEmpty = liftA2 (:|) arbitrary arbitrary
 
 -- | 'Either' that collects _all_ its failures in a list
 data Validation e a = VLeft (NonEmpty e) | VRight a

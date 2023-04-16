@@ -10,7 +10,11 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Test.QuickCheck.SafeGen.Generic where
+module Test.QuickCheck.SafeGen.Generic
+  ( SafeArbitrary (..),
+    FromSafeArbitrary (..),
+  )
+where
 
 import Control.Applicative (liftA2)
 import qualified Control.Applicative

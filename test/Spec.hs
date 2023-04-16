@@ -72,6 +72,7 @@ main =
       describe "generics" $ do
         prop "derived Trie generator terminates" $ generatorTerminates (arbitrary :: Gen (Trie Int))
         prop "derived Term generator terminates" $ generatorTerminates (arbitrary :: Gen (Term Int))
+        prop "runSafeGen works with lazy infinite data" $ \(Blind (a :: Stream Int)) -> not (null a)
 
 generatorTerminates :: Gen a -> Expectation
 generatorTerminates g = flip shouldReturn () $ do
@@ -81,7 +82,7 @@ generatorTerminates g = flip shouldReturn () $ do
 data Trie a = Leaf a | Branch (Trie a) (Trie a) (Trie a)
   deriving stock (Foldable, Generic)
   deriving anyclass (SafeArbitrary)
-  deriving (Arbitrary) via (FromSafeArbitrary (Trie a))
+  deriving (Arbitrary) via FromSafeArbitrary (Trie a)
 
 data Term a
   = Var a
@@ -89,4 +90,10 @@ data Term a
   | App (Term a) (Term a)
   deriving stock (Foldable, Generic)
   deriving anyclass (SafeArbitrary)
-  deriving (Arbitrary) via (FromSafeArbitrary (Term a))
+  deriving (Arbitrary) via FromSafeArbitrary (Term a)
+
+data Stream a = Stream a (Stream a)
+  deriving stock (Foldable, Generic)
+  deriving anyclass (SafeArbitrary)
+
+instance SafeArbitrary a => Arbitrary (Stream a) where arbitrary = runSafeGenNoCheck safeArbitrary

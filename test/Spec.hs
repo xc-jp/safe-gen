@@ -53,7 +53,7 @@ main =
         ls <- sample' $ resize 81 $ length <$> runSafeGen go
         maximum ls `shouldBe` 81
       prop "arbitrary generators terminate" $ \(Blind (sg :: SafeGen Int)) ->
-        generatorTerminates $ runSafeGen sg
+        generatorTerminates $ runSafeGenNoCheck sg
       it "generates terms" $
         generatorTerminates . runSafeGen $
           let go :: SafeGen a -> SafeGen (Term a)

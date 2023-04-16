@@ -21,7 +21,7 @@ where
 import Control.Applicative (liftA2)
 import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty (..))
-import Test.QuickCheck (Gen)
+import Test.QuickCheck hiding (frequency, oneof)
 import qualified Test.QuickCheck as QC
 
 data Nat = Zero | Succ Nat
@@ -139,19 +139,16 @@ shallowness = go
         unsucc (Succ l) = Just l
 
 instance QC.Arbitrary a => QC.Arbitrary (SafeGen a) where
-  arbitrary = runSafeGen go
+  arbitrary =
+    QC.frequency
+      [ (1, pure (Gen QC.arbitrary)),
+        (1, Pure <$> QC.arbitrary),
+        (2, liftA2 Ap (QC.arbitrary :: Gen (SafeGen (Int -> a))) QC.arbitrary),
+        (2, Choice . fmap (\(Positive (Small w), g) -> (w, g)) <$> nonEmpty)
+      ]
     where
-      weight = gen (QC.chooseInt (1, 9))
-      genOne = (,) <$> weight <*> go
-      numChoices = [0 .. 5] :: [Int]
-      genChoice n = (\a as -> Choice (a :| as)) <$> genOne <*> traverse (const genOne) [1 .. n]
-      go =
-        oneof
-          [ pure (Gen QC.arbitrary),
-            gen (Pure <$> QC.arbitrary),
-            liftA2 Ap (arb :: SafeGen (SafeGen (Int -> a))) arb,
-            oneof (genChoice <$> numChoices)
-          ]
+      nonEmpty :: Arbitrary b => Gen (NonEmpty b)
+      nonEmpty = liftA2 (:|) arbitrary arbitrary
 
 -- | 'Either' that collects _all_ its failures in a list
 data Validation e a = VLeft (NonEmpty e) | VRight a

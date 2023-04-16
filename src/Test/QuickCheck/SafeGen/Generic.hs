@@ -32,6 +32,13 @@ import qualified Test.QuickCheck.Modifiers
 import Test.QuickCheck.SafeGen
 import Test.QuickCheck.SafeGen.Internal
 
+-- | Like 'Arbitrary', but with 'SafeGen' instead of 'Gen'.
+-- In practice, you probably won't interface with this class directly other than deriving an instance when deriving 'Arbitrary' via 'FromSafeArbitrary'.
+--
+-- One exception might be when you're not happy with the way 'FromSafeArbitrary' derives 'shrink', and you want to manually implement it.
+-- In that case, you can manually write @'arbitrary' = 'runSafeGen' 'safeArbitrary'@
+--
+-- Another example is when working with lazy infinite data, in which case you might want to remove the termination check using @'arbitrary' = 'runSafeGenNoCheck' 'safeArbitrary'@.
 class SafeArbitrary a where
   safeArbitrary :: SafeGen a
   default safeArbitrary :: (Generic a, GSafeArbitrary (Rep a)) => SafeGen a
@@ -43,6 +50,8 @@ class GSafeArbitrary a where
 class GSafeArbitrarySum a where
   gsafeArbitrarySum :: NonEmpty (Int, SafeGen (a x))
 
+-- | Intended to be used as a deriving conduit for 'Arbitrary' from 'SafeArbitrary'.
+-- This defines 'arbitrary' as @'runSafeGen' 'arbitrary'@, and 'shrink' as 'genericShrink'.
 newtype FromSafeArbitrary a = FromSafeArbitrary a
 
 instance

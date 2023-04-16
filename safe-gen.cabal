@@ -7,10 +7,20 @@ license-file:    LICENSE
 author:          Jonas Carpay
 maintainer:      Jonas Carpay <jonascarpay@gmail.com>
 copyright:       2023 Jonas Carpay
-tested-with:     GHC ==8.6.3 || ==8.8.3 || ==8.10.5
+tested-with:     GHC ==8.6.5 || ==8.8.3 || ==8.10.7 || ==9.0.2 || ==9.2.2
+synopsis:        Recursive Arbitrary instances without headaches
+homepage:        https://github.com/xc-jp/safe-gen#readme
+category:        Testing
 extra-doc-files:
   CHANGELOG.md
   README.md
+
+description:
+  safe-gen allows you to write and derive Arbitrary instances for recursive data without having to worry about termination.
+
+source-repository head
+  type:     git
+  location: git://github.com/xc-jp/safe-gen.git
 
 common common-options
   build-depends:    base >=4.9 && <5

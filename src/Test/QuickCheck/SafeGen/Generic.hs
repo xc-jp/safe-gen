@@ -13,6 +13,7 @@
 module Test.QuickCheck.SafeGen.Generic
   ( SafeArbitrary (..),
     FromSafeArbitrary (..),
+    genericSafeArbitrary,
   )
 where
 
@@ -20,6 +21,7 @@ import Control.Applicative (liftA2)
 import qualified Control.Applicative
 import Data.Coerce
 import qualified Data.Complex
+import qualified Data.Functor.Identity as Data.Functor
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Monoid
 import qualified Data.Ratio
@@ -29,7 +31,6 @@ import GHC.Generics
 import Test.QuickCheck.Arbitrary
 import qualified Test.QuickCheck.Modifiers
 import Test.QuickCheck.SafeGen.Internal
-import qualified Data.Functor.Identity as Data.Functor
 
 -- | Like 'Arbitrary', but with 'SafeGen' instead of 'Gen'.
 -- In practice, you probably won't interface with this class directly other than deriving an instance when deriving 'Arbitrary' via 'FromSafeArbitrary'.
@@ -41,7 +42,10 @@ import qualified Data.Functor.Identity as Data.Functor
 class SafeArbitrary a where
   safeArbitrary :: SafeGen a
   default safeArbitrary :: (Generic a, GSafeArbitrary (Rep a)) => SafeGen a
-  safeArbitrary = to <$> gsafeArbitrary
+  safeArbitrary = genericSafeArbitrary
+
+genericSafeArbitrary :: (Generic a, GSafeArbitrary (Rep a)) => SafeGen a
+genericSafeArbitrary = to <$> gsafeArbitrary
 
 class GSafeArbitrary a where
   gsafeArbitrary :: SafeGen (a x)

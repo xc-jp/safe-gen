@@ -5,11 +5,12 @@
 
 Writing `Arbitrary` instances is for recursive data is annoying, since it's easy to accidentally write non-terminating generators.
 A common pattern is to use `Gen`'s implicit size parameter to guide recursion, but this is tedious and error-prone.
-`safe-gen` automates this process, making manually writing instances painless, and deriving instances possible.
+`safe-gen` automates this process, making recursive instances painless.
+`safe-gen` can be used both to manually write instances or to automatically derive them.
 
 ## Example
 
-Here's an example of an `Arbitrary` instance that does not terminate:
+Here's an example of an `Arbitrary` instance that runs in unbounded time:
 
 ```haskell
 data Trie a
@@ -88,13 +89,13 @@ For product branches, we divide the size between the number of children, and rec
 Both make writing `Arbitrary` instances less error-prone.
 The philosophical difference is that `generic-arbitrary` does most of its heavy lifting upfront and at the type level, whereas `safe-gen` works entirely at the value level.
 
-The two benefits of `generic-arbitrary` is that it can provide pretty good guarantees at compile time, and that it only requires a single derived instance.
+The two benefits of `generic-arbitrary` are that it can provide pretty good guarantees at compile time, and that it only requires a single derived instance.
 Its main drawback is that there are cases where it _can't_ derive (useful) instances, and it won't _always_ be able to warn you about that.
 Examples include when you have mutual recursion, tricky fixpoints, or invariants to maintain.
 `safe-gen` won't be able to preclude certain known-bad generators the way `generic-arbitrary` can, but on the flip side, it will allow certain valid generators that `generic-arbitrary` doesn't, and it makes it easy to dive under the hood to tweak instances where necessary.
 The choice is yours, and the buy-in for either is generally low enough that you can't go wrong either way.
 
-There is also [less-arbitrary](https://github.com/mgajda/less-arbitrary).
+There is also [`less-arbitrary`](https://github.com/mgajda/less-arbitrary).
 It attempts to address some of `generic-arbitrary`'s shortcomings by adding a heuristic based retry for generators that seem to loop and, like `safe-gen`, provides a way to manually tweak generators.
 My main criticism is that, compared to `safe-gen`, its API is complicated, and it's still pretty easy to shoot yourself in the foot and write an unbounded generator.
 By comparison, with `safe-gen`, the naive implementation is almost always correct.

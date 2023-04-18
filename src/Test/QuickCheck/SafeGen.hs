@@ -1,10 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 
 module Test.QuickCheck.SafeGen
@@ -18,33 +13,14 @@ module Test.QuickCheck.SafeGen
   )
 where
 
-import Control.Applicative (liftA2)
 import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty (..))
 import Test.QuickCheck hiding (frequency, oneof)
-import qualified Test.QuickCheck as QC
+import qualified Test.QuickCheck
+import Test.QuickCheck.SafeGen.Internal (SafeGen (..))
 
 data Nat = Zero | Succ Nat
   deriving (Show)
-
--- 'Pure' could be encoded as @Gen . pure@, but by special-casing it we can maintain the Applicative laws.
--- Specifically, when dividing the size parameter, we don't count 'Pure' branches.
-data SafeGen a
-  = Gen (Gen a)
-  | Pure a
-  | forall i.
-    Ap
-      (SafeGen (i -> a))
-      (SafeGen i)
-  | Choice (NonEmpty (Int, SafeGen a))
-
-deriving instance Functor SafeGen
-
-instance Applicative SafeGen where
-  pure = Pure
-  Pure a <*> b = a <$> b
-  a <*> Pure b = ($ b) <$> a
-  a <*> b = Ap a b
 
 -- | Run a 'SafeGen' using the current context's size parameter.
 -- If the 'SafeGen' value does not have a leaf within 20 layers, assume it has infinite recursion, and throw an exception.
@@ -55,17 +31,17 @@ runSafeGen sg
 
 -- | like 'runSafeGen', but doesn't first check if this generator can terminate.
 runSafeGenNoCheck :: SafeGen a -> Gen a
-runSafeGenNoCheck sg0 = QC.sized (\size -> go size sg0)
+runSafeGenNoCheck sg0 = sized (\size -> go size sg0)
   where
     go :: Int -> SafeGen a -> Gen a
     go _ (Pure a) = pure a
-    go !size (Gen g) = QC.resize size g
+    go !size (Gen g) = resize size g
     go !size p@Ap {} = goProduct (size `div` max 1 (arity p)) p
     go !size (Choice ((_, a) :| [])) = go size a
     go !size (Choice as) =
       case filter (flip leqInt size . shallowness . snd) (toList as) of
-        [] -> QC.frequency ((fmap . fmap) (go size) (toList (safeMinBy (shallowness . snd) as)))
-        as' -> QC.frequency ((fmap . fmap) (go size) as')
+        [] -> Test.QuickCheck.frequency ((fmap . fmap) (go size) (toList (safeMinBy (shallowness . snd) as)))
+        as' -> Test.QuickCheck.frequency ((fmap . fmap) (go size) as')
 
     goProduct :: Int -> SafeGen a -> Gen a
     goProduct !size (Ap l r) = goProduct size l <*> goProduct size r
@@ -95,8 +71,8 @@ gen :: Gen a -> SafeGen a
 gen = Gen
 
 -- | Convenient synonym for 'gen arbitrary'.
-arb :: QC.Arbitrary a => SafeGen a
-arb = gen QC.arbitrary
+arb :: Arbitrary a => SafeGen a
+arb = gen arbitrary
 
 -- | Pick one of these branches, with equal probability.
 -- Only branches shallower than the current size are considered.
@@ -137,18 +113,6 @@ shallowness = go
         unsucc :: Nat -> Maybe Nat
         unsucc Zero = Nothing
         unsucc (Succ l) = Just l
-
-instance QC.Arbitrary a => QC.Arbitrary (SafeGen a) where
-  arbitrary =
-    QC.frequency
-      [ (1, pure (Gen QC.arbitrary)),
-        (1, Pure <$> QC.arbitrary),
-        (2, liftA2 Ap (QC.arbitrary :: Gen (SafeGen (Int -> a))) QC.arbitrary),
-        (2, Choice . fmap (\(Positive (Small w), g) -> (w, g)) <$> nonEmpty)
-      ]
-    where
-      nonEmpty :: Arbitrary b => Gen (NonEmpty b)
-      nonEmpty = liftA2 (:|) arbitrary arbitrary
 
 -- | 'Either' that collects _all_ its failures in a list
 data Validation e a = VLeft (NonEmpty e) | VRight a

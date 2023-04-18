@@ -29,7 +29,6 @@ import qualified Foreign.C
 import GHC.Generics
 import Test.QuickCheck.Arbitrary
 import qualified Test.QuickCheck.Modifiers
-import Test.QuickCheck.SafeGen
 import Test.QuickCheck.SafeGen.Internal
 
 -- | Like 'Arbitrary', but with 'SafeGen' instead of 'Gen'.

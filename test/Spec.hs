@@ -11,7 +11,6 @@ import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck as QC
 import Test.QuickCheck.SafeGen as Safe
-import Test.QuickCheck.SafeGen.Generic
 
 main :: IO ()
 main =
@@ -29,7 +28,7 @@ main =
                     (10, liftA3 Branch go go go)
                   ]
            in go
-      it "gen . runSageGen terminates" $
+      it "gen . runSafeGen terminates" $
         generatorTerminates . runSafeGen $
           let go =
                 Safe.oneof

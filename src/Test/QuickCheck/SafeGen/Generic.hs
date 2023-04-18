@@ -18,7 +18,6 @@ where
 
 import Control.Applicative (liftA2)
 import qualified Control.Applicative
-import qualified Control.Monad.Identity as Control.Monad
 import Data.Coerce
 import qualified Data.Complex
 import Data.List.NonEmpty (NonEmpty)
@@ -30,6 +29,7 @@ import GHC.Generics
 import Test.QuickCheck.Arbitrary
 import qualified Test.QuickCheck.Modifiers
 import Test.QuickCheck.SafeGen.Internal
+import qualified Data.Functor.Identity as Data.Functor
 
 -- | Like 'Arbitrary', but with 'SafeGen' instead of 'Gen'.
 -- In practice, you probably won't interface with this class directly other than deriving an instance when deriving 'Arbitrary' via 'FromSafeArbitrary'.
@@ -127,7 +127,7 @@ instance Integral a      => SafeArbitrary (Data.Ratio.Ratio a) where safeArbitra
 instance SafeArbitrary a => SafeArbitrary (Data.Complex.Complex a)
 
 deriving newtype instance SafeArbitrary a => SafeArbitrary (Control.Applicative.ZipList a)
-deriving newtype instance SafeArbitrary a => SafeArbitrary (Control.Monad.Identity a)
+deriving newtype instance SafeArbitrary a => SafeArbitrary (Data.Functor.Identity a)
 
 deriving newtype instance                    SafeArbitrary Data.Monoid.All
 deriving newtype instance                    SafeArbitrary Data.Monoid.Any

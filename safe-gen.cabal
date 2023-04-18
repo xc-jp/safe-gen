@@ -1,6 +1,6 @@
 cabal-version:   2.4
 name:            safe-gen
-version:         1.0.0
+version:         1.0.1
 license:         BSD-3-Clause
 build-type:      Simple
 license-file:    LICENSE
@@ -16,7 +16,7 @@ extra-doc-files:
   README.md
 
 description:
-  safe-gen allows you to write and derive Arbitrary instances for recursive data without having to worry about termination.
+  Write and derive Arbitrary instances for recursive data without worrying about termination.
 
 source-repository head
   type:     git
@@ -38,13 +38,7 @@ library
     Test.QuickCheck.SafeGen.Generic
 
   other-modules:   Test.QuickCheck.SafeGen.Internal
-  build-depends:
-    , containers
-    , logict
-    , mtl
-    , QuickCheck
-    , random
-    , transformers
+  build-depends:   QuickCheck
 
 test-suite safe-gen-test
   import:         common-options

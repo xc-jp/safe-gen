@@ -70,6 +70,28 @@ The inverse is not true; (despite the name) `safe-gen` does not make it impossib
 For example, nothing prevents you from writing something like `runSafeGen (let go = go in go)`, which will cause an infinite loop.
 In some cases, such as `runSafeGen (let f = oneof [f] in f)`, `safe-gen` will be able to catch the infinite recursion and throw an exception, and in some cases it will give you a lazy infinite generator, but in general, (and unlike `generic-arbitrary`, about which more below), these issues are left undefined and outside the scope of the library.
 
+### Comparison with other packages
+
+#### generic-arbitrary
+
+Ostensibly, the primary alternative to `safe-gen` is [`generic-arbitrary`](https://hackage.haskell.org/package/generic-arbitrary).
+Both make writing `Arbitrary` instances less error-prone.
+In practice, however, they target slightly different use cases.
+
+`generic-arbitrary` tries to completely hide the process of writing instances by providing a nice, fully automated experience.
+You usually add just a `deriving` clause, and if there is no terminating instance for your data type, you often get a helpful compile-time warning.
+
+`safe-gen` is specifically aimed at the cases in which that is not an option; either because you need more control, or `generic-arbitrary` _can't_ derive a (useful) instance.
+Examples include when you have mutual recursion, tricky fixpoints, or invariants to maintain.
+It doesn't hide the machinery, but rather tries to make the machinery easy to use.
+
+#### less-arbitrary
+
+There is also [`less-arbitrary`](https://github.com/mgajda/less-arbitrary).
+It attempts to address some of `generic-arbitrary`'s shortcomings by adding a heuristic based retry-mechanism for generators that seem to loop and.
+Like `safe-gen`, it provides more control than `generic-arbitrary`.
+My main criticism is that, compared to `safe-gen`, its API is large and complicated, and it's still pretty easy to shoot yourself in the foot and write an unbounded generator.
+
 ### Implementation details
 
 A `SafeGen` value is a lazy, potentially infinite n-ary tree, whose branches are product or sum types, and leaves are `Gen` values.
@@ -82,19 +104,3 @@ When we "run" this tree, i.e. go from `SafeGen` to `Gen`, we start by asking for
 Then, with this size parameter in hand, we traverse the tree as follows:
 For sum branches, we only consider children whose shallowness is at most the size parameter, or if none exist, the shallowest branch(es).
 For product branches, we divide the size between the number of children, and recurse.
-
-### Comparison with other packages
-
-`safe-gen` exists in a similar space as [`generic-arbitrary`](https://github.com/typeable/generic-arbitrary).
-Both make writing `Arbitrary` instances less error-prone.
-The philosophical difference is that `generic-arbitrary` does most of its heavy lifting upfront and at the type level, whereas `safe-gen` works entirely at the value level.
-
-Practically, the two benefits of `generic-arbitrary` are that it can provide pretty good guarantees at compile time, and that it only requires a single derived instance.
-Its main drawback is that there are cases where it _can't_ derive (useful) instances, and it won't _always_ be able to warn you about that.
-Examples include when you have mutual recursion, tricky fixpoints, or invariants to maintain.
-`safe-gen` won't be able to preclude certain known-bad generators the way `generic-arbitrary` can, but on the flip side, it will allow certain valid generators that `generic-arbitrary` doesn't, and it makes it easy to dive under the hood to tweak instances where necessary.
-The choice is yours, and the buy-in for either is generally low enough that you can't go wrong either way.
-
-There is also [`less-arbitrary`](https://github.com/mgajda/less-arbitrary).
-It attempts to address some of `generic-arbitrary`'s shortcomings by adding a heuristic based retry for generators that seem to loop and, like `safe-gen`, provides a way to manually tweak generators.
-My main criticism is that, compared to `safe-gen`, its API is complicated, and it's still pretty easy to shoot yourself in the foot and write an unbounded generator.

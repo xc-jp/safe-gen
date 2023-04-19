@@ -74,23 +74,21 @@ In some cases, such as `runSafeGen (let f = oneof [f] in f)`, `safe-gen` will be
 
 #### generic-arbitrary
 
-Ostensibly, the primary alternative to `safe-gen` is [`generic-arbitrary`](https://hackage.haskell.org/package/generic-arbitrary).
-Both make writing `Arbitrary` instances less error-prone.
-In practice, however, they target slightly different use cases.
-
-`generic-arbitrary` tries to completely hide the process of writing instances by providing a nice, fully automated experience.
+[`generic-arbitrary`](https://github.com/typeable/generic-arbitrary) tries to completely hide the process of writing instances by providing a nice, fully automated experience.
 You usually add just a `deriving` clause, and if there is no terminating instance for your data type, you often get a helpful compile-time warning.
+Unfortunately, it's pretty easy to push `generic-arbitrary` to its limit, where it will still generate non-terminating instances, without emitting a warning.
+With `safe-gen`, derived instances always terminate.
 
-`safe-gen` is specifically aimed at the cases in which that is not an option; either because you need more control, or `generic-arbitrary` _can't_ derive a (useful) instance.
-Examples include when you have mutual recursion, tricky fixpoints, or invariants to maintain.
-It doesn't hide the machinery, but rather tries to make the machinery easy to use.
+#### generic-random
+
+[`generic-random`](https://github.com/lysxia/generic-random) also focuses on deriving instances, but provides (and requires) a bit more control than `generic-arbitrary`.
+Its DSL pushes more machinery to compile time than `safe-gen`, but is also less flexible, and makes it easier to shoot yourself in the foot.
 
 #### less-arbitrary
 
-There is also [`less-arbitrary`](https://github.com/mgajda/less-arbitrary).
-It attempts to address some of `generic-arbitrary`'s shortcomings by adding a heuristic based retry-mechanism for generators that seem to loop and.
-Like `safe-gen`, it provides more control than `generic-arbitrary`.
-My main criticism is that, compared to `safe-gen`, its API is large and complicated, and it's still pretty easy to shoot yourself in the foot and write an unbounded generator.
+[`less-arbitrary`](https://github.com/mgajda/less-arbitrary) attempts to address some of `generic-arbitrary`'s shortcomings by adding a heuristic based retry-mechanism for generators that seem to loop.
+It has more tools for hand-writing generators, and so expects more from the user.
+My main criticism is that, compared to `safe-gen`, its API is relatively large and complicated, and replaces the problem of infinitely looping generators with generators that infinitely retry.
 
 ### Implementation details
 
